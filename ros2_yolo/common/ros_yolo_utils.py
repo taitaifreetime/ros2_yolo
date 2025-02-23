@@ -12,11 +12,11 @@ def classes_to_msg(classes: dict, confidence: float) -> LabelInfo:
 
 def bbox_to_msg(xyxy):
     bbox_msg = BoundingBox2D()
-    x1, y1, x2, y2 = map(int, xyxy)  # Convert to integer for drawing
-    bbox_msg.size_x = float(x2-x1)
-    bbox_msg.size_y = float(y2-y1)
-    bbox_msg.center.position.x = float(x2+x1)/2.0
-    bbox_msg.center.position.y = float(y2+y1)/2.0
+    x1, y1, x2, y2 = map(float, xyxy)  # Convert to integer for drawing
+    bbox_msg.size_x = x2-x1
+    bbox_msg.size_y = y2-y1
+    bbox_msg.center.position.x = (x2+x1)/2.0
+    bbox_msg.center.position.y = (y2+y1)/2.0
     return bbox_msg
 
 def cls_to_msg(box):

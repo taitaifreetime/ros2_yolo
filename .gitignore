@@ -1,3 +1,5 @@
 models/*pt
 models/*engine
 models/*onnx
+runs
+__pycache__

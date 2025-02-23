@@ -1,14 +1,14 @@
 # YOLO for ROS 2
-This was tested on Jetson Orin Nano with ROS 2 Humble.
+This was tested on Jetson Orin Nano Jetpack6.2 with ROS 2 Humble.
 
 ## Requirements
 - PyTorch 2.5.0
 - torchvision 0.20.0
-- and others
+- and something
 
 ## Usage 
 ```
-
+ros2 run ros2_yolo yolo_node --ros-args -p yolo_model_path:=/your_ws/src/ros2_yolo/models/yolo12n.pt -r input_image:=/camera/csi1/image_raw
 ```
 
 ## With Tensorrt
