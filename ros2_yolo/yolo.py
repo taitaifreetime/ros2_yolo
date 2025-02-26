@@ -1,12 +1,15 @@
 # ros
 from rclpy.node import Node
-from sensor_msgs.msg import Image, CompressedImage
-from vision_msgs.msg import LabelInfo, Detection2DArray, Detection2D
 from rclpy.qos import QoSProfile, QoSDurabilityPolicy
 from ros2_yolo.common.ros_utils import get_ros_param
-from ros2_yolo.common.ros_yolo_utils import classes_to_msg, bbox_to_msg, cls_to_msg
-from ros2_yolo.common.visualize_utils import get_color_list, draw_bbox
+from ros2_yolo.common.ros_yolo_utils import classes_to_msg, bbox_to_msg, cls_to_msg, skeleton_to_msg
+from ros2_yolo.common.visualize_utils import get_bbox_color_list, get_skeleton_color_list, draw_bbox, draw_skeleton
 from rclpy.qos import qos_profile_sensor_data
+
+# msg 
+from sensor_msgs.msg import Image, CompressedImage
+from vision_msgs.msg import LabelInfo, Detection2DArray, Detection2D
+from hri_msgs.msg import Skeleton2DArray
 
 # detection
 from ultralytics import YOLO
@@ -40,11 +43,13 @@ class ROS2YOLO(Node):
         self.img_sub_ = self.create_subscription(Image, "input_image", self.img_callback, qos_profile=qos_profile_sensor_data)
         self.compressd_img_pub_ = self.create_publisher(CompressedImage, 'result/image/compressed', 10)
         self.detection_pub_ = self.create_publisher(Detection2DArray, 'result/detections', 10)
+        self.skeletons_pub_ = self.create_publisher(Skeleton2DArray, 'result/skeletons', 10)
         self.labelinfo_pub_ = self.create_publisher(LabelInfo, 'result/labelinfo', qos_profile=QoSProfile(depth=1, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL))
         self.bridge_ = CvBridge()
         
         self.names_ = self.model_.names
-        self.colors_ = get_color_list(len(self.names_.keys()))
+        self.bbox_colors_ = get_bbox_color_list(len(self.names_.keys()))
+        self.skeleton_colors_ = get_skeleton_color_list()
         classes_msg = classes_to_msg(self.names_, self.det_conf_)
         self.labelinfo_pub_.publish(classes_msg)
 
@@ -53,6 +58,7 @@ class ROS2YOLO(Node):
         self.get_logger().info("visualize: {}".format(self.visualize_))
         self.get_logger().info("Published Topic")
         self.get_logger().info("  {}".format(self.detection_pub_.topic_name))
+        self.get_logger().info("  {}".format(self.skeletons_pub_.topic_name))
         self.get_logger().info("  {}".format(self.compressd_img_pub_.topic_name))
         self.get_logger().info("  {}".format(self.labelinfo_pub_.topic_name))
         self.get_logger().info("Subscribed Topic")
@@ -73,25 +79,37 @@ class ROS2YOLO(Node):
 
             detections_msg = Detection2DArray()
             detections_msg.header = msg.header
+            skeletons_msg = Skeleton2DArray()
+            skeletons_msg.header = msg.header
             for j in range(len(boxes)):
                 box = boxes[j]   
                 class_id = int(float(box.cls[0].item()))
                 if ((self.class_id_ == -1 or class_id == self.class_id_)): 
                     detection_msg = Detection2D()
                     cls_msg = cls_to_msg(box)
-                    color = self.colors_[class_id]
+                    color = self.bbox_colors_[class_id]
                     bbox_msg = bbox_to_msg(box.xyxy[0])
                     detection_msg.results.append(cls_msg)
                     detection_msg.bbox = bbox_msg
                     detections_msg.detections.append(detection_msg)
-
                     if self.visualize_: 
                         class_label = self.names_[box.cls[0].item()]
                         score = float(cls_msg.hypothesis.score)
                         draw_bbox(result_img, color, bbox_msg, class_label, score, 
-                                    thickness=int(2*(msg.width/1280)), fontscale=1.0*(msg.width/1280))
+                                    thickness=int(2*(msg.width/1280)), fontscale=int(1.0*(msg.width/1280)))
+                
+                if keypoints:
+                    skeleton = keypoints[j]
+                    confs = skeleton.conf[0].tolist()
+                    nodes = skeleton.xy[0].tolist()
+                    skeleton_msg = skeleton_to_msg(nodes, confs)
+                    skeletons_msg.skeletons.append(skeleton_msg)
+                    if self.visualize_: 
+                        draw_skeleton(result_img, self.skeleton_colors_, skeleton_msg, 
+                                    thickness=int(2*(msg.width/1280)), fontscale=int(1.0*(msg.width/1280)))
 
             self.detection_pub_.publish(detections_msg)
+            self.skeletons_pub_.publish(skeletons_msg)
             
             end_time = self.get_clock().now()
             fps = 1.0 * 1e+9/ (end_time - start_time).nanoseconds

@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 from vision_msgs.msg import BoundingBox2D, ObjectHypothesisWithPose
 
-def get_color_list(num_class: int) -> list:
+def get_bbox_color_list(num_class: int) -> list:
     """generate colors in advance
 
     Args:
@@ -46,3 +46,30 @@ def draw_bbox(result_img, color, bbox_msg: BoundingBox2D, class_label: str, scor
             color=color, 
             thickness=thickness, 
             lineType=cv2.LINE_AA)
+    
+def get_skeleton_color_list() -> list:
+    colors = [
+        (0, 0, 255),   # NOSE
+        (0, 32, 255),  # NECK
+        (0, 85, 255),  # RIGHT_SHOULDER
+        (0, 170, 255), # RIGHT_ELBOW
+        (0, 255, 255), # RIGHT_WRIST
+        (0, 255, 170), # LEFT_SHOULDER
+        (0, 255, 85),  # LEFT_ELBOW
+        (0, 255, 0),   # LEFT_WRIST
+        (85, 255, 0),  # RIGHT_HIP
+        (170, 255, 0), # RIGHT_KNEE
+        (255, 255, 0), # RIGHT_ANKLE 
+        (255, 170, 0), # LEFT_HIP 
+        (255, 85, 0),  # LEFT_KNEE 
+        (255, 0, 0),   # LEFT_ANKLE 
+        (255, 0, 192), # LEFT_EYE 
+        (192, 0, 255), # RIGHT_EYE 
+        (255, 0, 128), # LEFT_EAR 
+        (128, 0, 255)  # RIGHT_EAR 
+    ]
+    return colors 
+
+def draw_skeleton(result_img, colors, skeleton_msg, thickness = 2, fontscale = 1):
+    for node, color in zip(skeleton_msg.skeleton, colors):
+        cv2.circle(result_img, (int(node.x), int(node.y)), 5*fontscale, color, thickness=5*thickness, lineType=cv2.LINE_8, shift=0)
